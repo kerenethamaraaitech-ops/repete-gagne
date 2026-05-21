@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Répète & Gagne!</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:#0f172a;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;font-family:'Segoe UI',system-ui,sans-serif;padding-bottom:40px;}
+#app{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;padding:0 0 30px;}
+#top-bar{width:100%;display:flex;justify-content:space-between;align-items:center;padding:20px 24px 10px;}
+.stars-row{display:flex;gap:6px;}
+.star{font-size:24px;transition:transform 0.3s;}
+@keyframes starPop{0%{transform:scale(1)}50%{transform:scale(1.7)}100%{transform:scale(1)}}
+.star.pop{animation:starPop 0.4s ease;}
+#level-badge{background:#1e293b;border-radius:20px;padding:7px 16px;font-size:14px;color:#94a3b8;font-weight:700;letter-spacing:0.5px;}
+#progress-bar{width:calc(100% - 48px);height:10px;background:#1e293b;border-radius:5px;margin:0 0 20px;overflow:hidden;}
+#progress-fill{height:100%;background:#3b82f6;border-radius:5px;transition:width 0.6s ease;width:0%;}
+#emoji-stage{width:170px;height:170px;display:flex;align-items:center;justify-content:center;font-size:120px;margin:0 0 8px;border-radius:28px;background:#1e293b;transition:transform 0.2s;}
+#word-display{font-size:48px;font-weight:900;color:#f8fafc;letter-spacing:4px;margin:6px 0 4px;text-align:center;}
+#hint-display{font-size:15px;color:#64748b;margin-bottom:22px;text-align:center;min-height:22px;}
+#listen-btn{background:#3b82f6;border:none;border-radius:50px;padding:15px 40px;font-size:20px;color:white;font-weight:800;cursor:pointer;margin-bottom:18px;display:flex;align-items:center;gap:12px;font-family:inherit;transition:transform 0.1s,background 0.2s;letter-spacing:0.5px;}
+#listen-btn:active{transform:scale(0.95);background:#1d4ed8;}
+#mic-area{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:16px;}
+#mic-btn{width:100px;height:100px;border-radius:50%;border:none;background:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:44px;transition:transform 0.15s,background 0.2s;position:relative;}
+#mic-btn.recording{background:#dc2626;}
+#mic-btn.recording::before{content:'';position:absolute;inset:-12px;border-radius:50%;border:4px solid rgba(239,68,68,0.4);animation:ripple1 1s infinite;}
+#mic-btn.recording::after{content:'';position:absolute;inset:-24px;border-radius:50%;border:3px solid rgba(239,68,68,0.2);animation:ripple1 1s 0.3s infinite;}
+@keyframes ripple1{0%{transform:scale(0.9);opacity:1}100%{transform:scale(1.1);opacity:0}}
+#mic-label{font-size:14px;color:#64748b;font-weight:700;letter-spacing:0.5px;}
+#feedback-zone{min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:0 24px;}
+#feedback-msg{font-size:26px;font-weight:900;text-align:center;transition:all 0.3s;min-height:36px;}
+#sub-msg{font-size:15px;color:#94a3b8;margin-top:8px;text-align:center;min-height:20px;}
+#next-btn{display:none;background:#10b981;border:none;border-radius:50px;padding:15px 50px;font-size:22px;color:white;font-weight:900;cursor:pointer;margin-top:16px;font-family:inherit;transition:transform 0.1s;letter-spacing:0.5px;}
+#next-btn:active{transform:scale(0.95);}
+#confetti-container{position:fixed;inset:0;pointer-events:none;overflow:hidden;}
+.cp{position:absolute;animation:cf linear forwards;}
+@keyframes cf{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+#trophy-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:18px;padding:30px 24px;width:100%;}
+#trophy-screen.show{display:flex;}
+#mic-status{font-size:12px;color:#475569;margin-top:4px;text-align:center;min-height:16px;}
+</style>
+</head>
+<body>
+<div id="confetti-container"></div>
+<div id="app">
+  <div id="top-bar">
+    <div class="stars-row">
+      <span class="star" id="s1">⭐</span>
+      <span class="star" id="s2">⭐</span>
+      <span class="star" id="s3">⭐</span>
+      <span class="star" id="s4">⭐</span>
+      <span class="star" id="s5">⭐</span>
+    </div>
+    <div id="level-badge">Niveau 1</div>
+  </div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+
+  <div id="main-game" style="display:flex;flex-direction:column;align-items:center;width:100%;">
+    <div id="emoji-stage">🍎</div>
+    <div id="word-display">POMME</div>
+    <div id="hint-display">Écoute, puis répète!</div>
+    <button id="listen-btn" onclick="speakWord()">
+      <span style="font-size:24px;">🔊</span> Écouter
+    </button>
+    <div id="mic-area">
+      <button id="mic-btn" onclick="handleMic()" aria-label="Microphone">🎤</button>
+      <div id="mic-label">Appuie et parle!</div>
+      <div id="mic-status"></div>
+    </div>
+    <div id="feedback-zone">
+      <div id="feedback-msg"></div>
+      <div id="sub-msg"></div>
+      <button id="next-btn" onclick="nextWord()">Suivant ➡️</button>
+    </div>
+  </div>
+
+  <div id="trophy-screen">
+    <div style="font-size:90px;">🏆</div>
+    <div style="font-size:36px;font-weight:900;color:#f8fafc;text-align:center;">Bravo champion!</div>
+    <div style="font-size:20px;color:#94a3b8;text-align:center;line-height:1.5;">Tu as tout réussi!<br>Je suis fier de toi! 💪</div>
+    <div style="font-size:40px;letter-spacing:10px;margin:8px 0;">🌟🌟🌟🌟🌟</div>
+    <button id="listen-btn" style="margin-top:10px;background:#10b981;font-size:20px;" onclick="restartGame()">Recommencer 🔄</button>
+  </div>
+</div>
+
+<script>
+const WORDS = [
+  {word:'OUI',      emoji:'✅', hint:'La réponse positive'},
+  {word:'NON',      emoji:'❌', hint:'La réponse négative'},
+  {word:'BONJOUR',  emoji:'👋', hint:'Pour saluer quelqu\'un'},
+  {word:'MERCI',    emoji:'🙏', hint:'Pour être poli'},
+  {word:'AIDE',     emoji:'🆘', hint:'Quand tu as besoin d\'aide'},
+  {word:'EAU',      emoji:'💧', hint:'On boit ça'},
+  {word:'FAIM',     emoji:'🍽️', hint:'Quand on veut manger'},
+  {word:'CHAUD',    emoji:'🔥', hint:'Quand c\'est trop chaud'},
+  {word:'FROID',    emoji:'🧊', hint:'Quand c\'est trop froid'},
+  {word:'POMME',    emoji:'🍎', hint:'Un fruit rouge'},
+  {word:'BALLON',   emoji:'⚽', hint:'On joue avec'},
+  {word:'BRAVO',    emoji:'🎉', hint:'Quand on réussit quelque chose'},
+];
+
+let idx=0, score=0, recording=false, recognition=null, attempts=0;
+
+function speak(text, onEnd){
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang='fr-FR'; u.rate=0.75; u.pitch=1.1; u.volume=1;
+  if(onEnd) u.onend=onEnd;
+  window.speechSynthesis.speak(u);
+}
+
+function speakWord(){
+  const w=WORDS[idx];
+  document.getElementById('emoji-stage').style.transform='scale(1.12)';
+  document.getElementById('listen-btn').style.background='#1d4ed8';
+  speak(w.word, ()=>{
+    document.getElementById('emoji-stage').style.transform='scale(1)';
+    document.getElementById('listen-btn').style.background='#3b82f6';
+  });
+  document.getElementById('hint-display').textContent=w.hint;
+}
+
+function lev(a,b){
+  const m=a.length,n=b.length;
+  const d=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
+  return d[m][n];
+}
+
+function isMatch(heard, target){
+  const h=heard.toUpperCase().trim();
+  const t=target.toUpperCase().trim();
+  if(h===t) return true;
+  if(h.includes(t)||t.includes(h)) return true;
+  if(lev(h,t)<=Math.max(1,Math.floor(t.length*0.4))) return true;
+  return false;
+}
+
+function handleMic(){
+  if(recording) return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    document.getElementById('mic-status').textContent='Micro non disponible sur ce navigateur';
+    return;
+  }
+  recording=true;
+  const btn=document.getElementById('mic-btn');
+  btn.classList.add('recording');
+  btn.textContent='⏺️';
+  document.getElementById('mic-label').textContent='Je t\'écoute...';
+  document.getElementById('mic-status').textContent='';
+  document.getElementById('feedback-msg').textContent='';
+  document.getElementById('sub-msg').textContent='';
+  document.getElementById('next-btn').style.display='none';
+
+  recognition=new SR();
+  recognition.lang='fr-FR';
+  recognition.continuous=false;
+  recognition.interimResults=false;
+  recognition.maxAlternatives=8;
+
+  recognition.onresult=(e)=>{
+    const alts=Array.from(e.results[0]).map(a=>a.transcript);
+    const target=WORDS[idx].word;
+    const matched=alts.some(a=>isMatch(a,target));
+    stopRec();
+    matched ? onSuccess() : onRetry(alts[0]);
+  };
+
+  recognition.onerror=(e)=>{
+    stopRec();
+    if(e.error==='not-allowed'){
+      document.getElementById('mic-status').textContent='⚠️ Autorise le micro dans ton navigateur';
+    } else if(e.error==='no-speech'){
+      document.getElementById('mic-status').textContent='Je n\'ai pas entendu... essaie encore!';
+      document.getElementById('next-btn').style.display='inline-block';
+    } else {
+      document.getElementById('mic-status').textContent='Réessaie!';
+      document.getElementById('next-btn').style.display='inline-block';
+    }
+  };
+
+  recognition.onend=()=>{ if(recording) stopRec(); };
+  recognition.start();
+  setTimeout(()=>{ if(recording&&recognition) recognition.stop(); }, 6000);
+}
+
+function stopRec(){
+  recording=false;
+  const btn=document.getElementById('mic-btn');
+  btn.classList.remove('recording');
+  btn.textContent='🎤';
+  document.getElementById('mic-label').textContent='Appuie et parle!';
+}
+
+function onSuccess(){
+  score++;
+  attempts=0;
+  document.getElementById('feedback-msg').style.color='#10b981';
+  const msgs=['🎉 SUPER BIEN!','🌟 EXCELLENT!','🔥 TROP FORT!','💪 CHAMPION!','🎊 PARFAIT!'];
+  document.getElementById('feedback-msg').textContent=msgs[Math.floor(Math.random()*msgs.length)];
+  const subs=['Continue comme ça!','Tu es incroyable!','Je suis fier de toi!','C\'est exactement ça!'];
+  document.getElementById('sub-msg').textContent=subs[Math.floor(Math.random()*subs.length)];
+  speak('Super bien! Bravo!');
+  confetti(50);
+  updateStars();
+  document.getElementById('next-btn').style.display='inline-block';
+}
+
+function onRetry(heard){
+  attempts++;
+  document.getElementById('feedback-msg').style.color='#f59e0b';
+  if(attempts>=2){
+    document.getElementById('feedback-msg').textContent='💛 C\'est correct!';
+    document.getElementById('sub-msg').textContent='Écoute encore et réessaie!';
+    speak('C\'est bien! Écoute encore une fois.');
+  } else {
+    document.getElementById('feedback-msg').textContent='💪 Encore une fois!';
+    document.getElementById('sub-msg').textContent='Tu peux le faire! Écoute d\'abord.';
+    speak('Encore une fois! Tu peux le faire!');
+  }
+  document.getElementById('next-btn').style.display='inline-block';
+}
+
+function updateStars(){
+  const total=WORDS.length;
+  const lit=Math.min(5,Math.round((score/total)*5));
+  for(let i=1;i<=5;i++){
+    const s=document.getElementById('s'+i);
+    if(i<=lit){ s.textContent='🌟'; s.classList.remove('pop'); void s.offsetWidth; s.classList.add('pop'); }
+    else s.textContent='⭐';
+  }
+  document.getElementById('progress-fill').style.width=Math.round(((idx+1)/total)*100)+'%';
+}
+
+function nextWord(){
+  document.getElementById('next-btn').style.display='none';
+  document.getElementById('feedback-msg').textContent='';
+  document.getElementById('sub-msg').textContent='';
+  document.getElementById('mic-status').textContent='';
+  attempts=0;
+  idx++;
+  if(idx>=WORDS.length){ showTrophy(); return; }
+  loadWord();
+}
+
+function loadWord(){
+  const w=WORDS[idx];
+  document.getElementById('emoji-stage').textContent=w.emoji;
+  document.getElementById('word-display').textContent=w.word;
+  document.getElementById('hint-display').textContent='Écoute, puis répète!';
+  document.getElementById('level-badge').textContent='Niveau '+(idx+1);
+  document.getElementById('progress-fill').style.width=Math.round((idx/WORDS.length)*100)+'%';
+  setTimeout(()=>speakWord(), 500);
+}
+
+function showTrophy(){
+  document.getElementById('main-game').style.display='none';
+  document.getElementById('trophy-screen').classList.add('show');
+  confetti(100);
+  speak('Bravo champion! Tu as tout réussi! Je suis très fier de toi!');
+}
+
+function restartGame(){
+  idx=0; score=0; attempts=0;
+  document.getElementById('trophy-screen').classList.remove('show');
+  document.getElementById('main-game').style.display='flex';
+  for(let i=1;i<=5;i++) document.getElementById('s'+i).textContent='⭐';
+  document.getElementById('progress-fill').style.width='0%';
+  document.getElementById('level-badge').textContent='Niveau 1';
+  loadWord();
+}
+
+function confetti(n=40){
+  const c=document.getElementById('confetti-container');
+  const cols=['#ff4757','#ffd700','#2ed573','#1e90ff','#ff6b81','#ff9f43','#a29bfe','#ff6348'];
+  for(let i=0;i<n;i++){
+    const p=document.createElement('div');
+    p.className='cp';
+    const size=7+Math.random()*10;
+    p.style.cssText=`left:${Math.random()*100}%;top:-20px;width:${size}px;height:${size}px;background:${cols[Math.floor(Math.random()*cols.length)]};border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${1+Math.random()*1.5}s;animation-delay:${Math.random()*0.5}s;`;
+    c.appendChild(p);
+    setTimeout(()=>p.remove(), 2500);
+  }
+}
+
+window.onload=()=>loadWord();
+</script>
+</body>
+</html>
